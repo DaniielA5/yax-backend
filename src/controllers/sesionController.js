@@ -84,4 +84,27 @@ const resumenSesion = async (req, res, next) => {
   }
 };
 
-module.exports = { abrirSesion, cerrarSesion, resumenSesion };
+const historialVentas = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const [ventas] = await pool.execute(
+      `SELECT 
+        v.id_venta,
+        v.fecha,
+        v.estado,
+        v.nota,
+        SUM(dv.subtotal) AS total
+       FROM venta v
+       JOIN detalle_venta dv ON dv.id_venta = v.id_venta
+       WHERE v.id_sesion = ?
+       GROUP BY v.id_venta
+       ORDER BY v.fecha DESC`,
+      [id]
+    );
+    res.json(ventas);
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { abrirSesion, cerrarSesion, resumenSesion, historialVentas };

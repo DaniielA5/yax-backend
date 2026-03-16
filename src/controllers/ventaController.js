@@ -184,5 +184,24 @@ const registrarDevolucion = async (req, res, next) => {
     conn.release();
   }
 };
-
-module.exports = { crearVenta, pagarVenta, registrarGasto, registrarDevolucion };
+const obtenerProductos = async (req, res, next) => {
+  try {
+    const [productos] = await pool.execute(
+      `SELECT id_producto, nombre, precio_venta FROM productos WHERE activo = 1`
+    );
+    res.json(productos);
+  } catch (error) {
+    next(error);
+  }
+};
+const obtenerCategorias = async (req, res, next) => {
+  try {
+    const [categorias] = await pool.execute(
+      `SELECT id_categoria_gasto, nombre FROM cat_categoria_gasto WHERE activo = 1`
+    );
+    res.json(categorias);
+  } catch (error) {
+    next(error);
+  }
+};
+module.exports = { crearVenta, pagarVenta, registrarGasto, registrarDevolucion, obtenerProductos, obtenerCategorias };
