@@ -1,6 +1,6 @@
 const { pool, verificarSesionAbierta } = require('../db/connection');
 
-const abrirSesion = async (req, res) => {
+const abrirSesion = async (req, res, next) => {
   const { usuario, monto_inicial } = req.body;
 
   if (!usuario || monto_inicial === undefined) {
@@ -103,7 +103,21 @@ const historialVentas = async (req, res, next) => {
     ORDER BY v.fecha DESC`,
     [id]
   );
-    res.json(ventas);
+  for (const venta of ventas){
+    const [detalle] =  await pool.execute(
+       `SELECT 
+          dv.id_producto,
+          p.nombre,
+          dv.cantidad,
+          dv.precio_unitario_historico AS precio_unitario
+         FROM detalle_venta dv
+         JOIN productos p ON p.id_producto = dv.id_producto
+         WHERE dv.id_venta = ?`,
+        [venta.id_venta]
+      );
+      venta.productos = detalle;
+  }
+  res.json(ventas);
   } catch (error) {
     next(error);
   }
