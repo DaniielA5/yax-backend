@@ -186,8 +186,11 @@ const registrarDevolucion = async (req, res, next) => {
 };
 const obtenerProductos = async (req, res, next) => {
   try {
+    const todos = req.query.todos === '1';
     const [productos] = await pool.execute(
-      `SELECT id_producto, nombre, precio_venta FROM productos WHERE activo = 1`
+      todos
+        ? `SELECT id_producto, nombre, costo_produccion, precio_venta, activo, id_tipo_producto FROM productos`
+        : `SELECT id_producto, nombre, precio_venta FROM productos WHERE activo = 1`
     );
     res.json(productos);
   } catch (error) {
@@ -204,4 +207,93 @@ const obtenerCategorias = async (req, res, next) => {
     next(error);
   }
 };
-module.exports = { crearVenta, pagarVenta, registrarGasto, registrarDevolucion, obtenerProductos, obtenerCategorias };
+
+const obtenerMetodosPago = async (req, res, next) => { 
+  try {
+    const [metodos] = await pool.execute(
+      `SELECT id_metodo_pago, nombre FROM cat_metodo_pago`
+    );
+    res.json(metodos);
+
+  }catch(error){
+    next(error) ; 
+  }
+};
+
+const crearProducto = async (req, res, next) => {
+  const { id_tipo_producto, nombre, costo_produccion, precio_venta } = req.body;
+
+  if (!nombre || !precio_venta || !id_tipo_producto) {
+    return res.status(400).json({ error: 'nombre, precio_venta e id_tipo_producto son requeridos' });
+  }
+  if (precio_venta <= 0) {
+    return res.status(400).json({ error: 'El precio debe ser mayor a cero' });
+  }
+
+  try {
+    const [result] = await pool.execute(
+      `INSERT INTO productos (id_tipo_producto, nombre, costo_produccion, precio_venta)
+       VALUES (?, ?, ?, ?)`,
+      [id_tipo_producto, nombre, costo_produccion || 0, precio_venta]
+    );
+    res.status(201).json({ mensaje: 'Producto creado', id_producto: result.insertId });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const actualizarProducto = async (req, res, next) => {
+  const { id } = req.params;
+  const { nombre, costo_produccion, precio_venta } = req.body;
+
+  if (!nombre || !precio_venta) {
+    return res.status(400).json({ error: 'nombre y precio_venta son requeridos' });
+  }
+  if (precio_venta <= 0) {
+    return res.status(400).json({ error: 'El precio debe ser mayor a cero' });
+  }
+
+  try {
+    const [result] = await pool.execute(
+      `UPDATE productos SET nombre = ?, costo_produccion = ?, precio_venta = ?
+       WHERE id_producto = ?`,
+      [nombre, costo_produccion || 0, precio_venta, id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+    res.json({ mensaje: 'Producto actualizado' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const desactivarProducto = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.execute(
+      `UPDATE productos SET activo = 0 WHERE id_producto = ?`,
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+    res.json({ mensaje: 'Producto desactivado' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const obtenerTiposProducto = async (req, res, next) => {
+  try {
+    const [tipos] = await pool.execute(`SELECT * FROM cat_tipo_producto`);
+    res.json(tipos);
+  } catch (error) {
+    next(error);
+  }
+};
+module.exports = { 
+  crearVenta, pagarVenta, registrarGasto, registrarDevolucion, 
+  obtenerProductos, obtenerCategorias, obtenerMetodosPago,
+  crearProducto, actualizarProducto, desactivarProducto, obtenerTiposProducto
+};

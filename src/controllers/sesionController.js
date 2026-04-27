@@ -64,6 +64,9 @@ const resumenSesion = async (req, res, next) => {
         s.fecha_fin,
         COALESCE(SUM(CASE WHEN m.tipo = 'INGRESO' THEN m.monto END), 0) AS total_ingresos,
         COALESCE(SUM(CASE WHEN m.tipo = 'EGRESO'  THEN m.monto END), 0) AS total_egresos,
+        -- Desglose por método de pago (solo ingresos)
+        COALESCE(SUM(CASE WHEN m.tipo = 'INGRESO' AND m.id_metodo_pago = 1 THEN m.monto END), 0) AS ingreso_efectivo,
+        COALESCE(SUM(CASE WHEN m.tipo = 'INGRESO' AND m.id_metodo_pago = 2 THEN m.monto END), 0) AS ingreso_transferencia,
         s.monto_inicial
         + COALESCE(SUM(CASE WHEN m.tipo = 'INGRESO' THEN m.monto END), 0)
         - COALESCE(SUM(CASE WHEN m.tipo = 'EGRESO'  THEN m.monto END), 0) AS debe_haber_en_caja
