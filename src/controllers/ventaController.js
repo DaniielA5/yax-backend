@@ -68,7 +68,15 @@ const pagarVenta = async (req, res, next) => {
     if (!venta) {
       throw new Error('Venta no encontrada o ya procesada');
     }
+    // En pagarVenta, DESPUÉS de confirmar que venta existe
+    const [[{ total_real }]] = await conn.execute(
+      `SELECT SUM(subtotal) AS total_real FROM detalle_venta WHERE id_venta = ?`,
+      [id]
+    );
 
+if (Math.abs(parseFloat(monto) - parseFloat(total_real)) > 0.01) {
+      throw new Error(`Monto incorrecto. El total real de la venta es $${total_real}`);
+    }
     await conn.execute(
       `UPDATE venta SET estado = 'PAGADA' WHERE id_venta = ?`,
       [id]
@@ -148,6 +156,24 @@ const registrarDevolucion = async (req, res, next) => {
       throw new Error('Venta no encontrada o no está pagada');
     }
 
+    for(const item of productos){
+      const [[vendido]] = await conn.execute(
+        `SELECT cantidad FROM detalle_venta 
+     WHERE id_venta = ? AND id_producto = ?`,
+     [id, item.id_producto]
+      );
+
+      if(!vendido) {
+        throw new Error(`El producto ${item.id_producto} no pertenece a esta venta`);
+      }
+      if (item.cantidad > vendido.cantidad) {
+        throw new Error(
+          `No puedes devolver ${item.cantidad} unidades del producto  ${item.id_producto},
+          solo se vendieron ${vendido.cantidad}`
+        );
+      }
+    }
+
     let total_devuelto = 0;
     for (const item of productos) {
       total_devuelto += item.cantidad * item.precio_unitario;
@@ -184,6 +210,8 @@ const registrarDevolucion = async (req, res, next) => {
     conn.release();
   }
 };
+
+
 const obtenerProductos = async (req, res, next) => {
   try {
     const todos = req.query.todos === '1';
